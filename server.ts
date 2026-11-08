@@ -14,7 +14,7 @@ import {
 } from './src/lib/validation/index.ts';
 import { PERSONA_REGISTRY, getPersona } from './src/lib/agents/persona-registry.ts';
 import { assembleSystemPrompt } from './src/lib/ai/prompt-builder.ts';
-import { getGeminiClient, getGeminiModel, isGeminiConfigured } from './src/lib/ai/gemini.ts';
+import { getProviderStatus, openProviderStream } from './src/lib/ai/provider-router.ts';
 import { dbService, initDatabaseConnection } from './src/lib/database/client.ts';
 import { extractCodeBlocksFromMarkdown, createArtifactFromBlock } from './src/lib/services/artifact-service.ts';
 import { Message, Conversation } from './src/types/index.ts';
@@ -36,15 +36,9 @@ async function startServer() {
   // ----------------------------------------------------
   app.get('/api/status', async (_req: Request, res: Response) => {
     const dbStatus = dbService.getStatus();
-    const geminiConfigured = isGeminiConfigured();
-    const model = getGeminiModel();
-
     res.json({
       database: dbStatus,
-      gemini: {
-        configured: geminiConfigured,
-        model,
-      },
+      providers: getProviderStatus(),
       personas: Object.keys(PERSONA_REGISTRY),
       timestamp: new Date().toISOString(),
     });
@@ -339,56 +333,31 @@ async function startServer() {
       clientDisconnected = true;
     });
 
-    // Check Gemini API key
-    if (!isGeminiConfigured()) {
-      sendEvent({
-        type: 'error',
-        error:
-          'GEMINI_API_KEY is not configured in this environment. Please configure GEMINI_API_KEY in the Secrets panel or .env file to enable live intelligence streaming.',
-      });
-      res.end();
-      return;
-    }
-
     let accumulatedContent = '';
     const startTime = Date.now();
 
     try {
-      const ai = getGeminiClient();
-      const model = getGeminiModel();
+      const recentHistory = previousMessages.slice(-20).map((message) => ({
+        role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        content: message.content,
+      }));
+      recentHistory.push({ role: 'user', content: userMessage });
 
-      // Format history chronologically for Gemini
-      // Take last 20 messages for context depth
-      const recentHistory = previousMessages.slice(-20);
-      const contentsPayload = [
-        ...recentHistory.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        })),
-        {
-          role: 'user',
-          parts: [{ text: userMessage }],
-        },
-      ];
-
-      const streamResponse = await ai.models.generateContentStream({
-        model,
-        contents: contentsPayload,
-        config: {
-          systemInstruction: systemPrompt,
-        },
+      // The router probes the first token before returning, so recoverable provider
+      // failures happen before any bytes are committed to the client.
+      const providerStream = await openProviderStream({
+        systemPrompt,
+        messages: recentHistory,
       });
+      sendEvent({ type: 'provider', ...providerStream.selection });
 
-      for await (const chunk of streamResponse) {
+      for await (const textDelta of providerStream.chunks) {
         if (clientDisconnected) break;
-        const textDelta = chunk.text || '';
-        if (textDelta) {
-          accumulatedContent += textDelta;
-          sendEvent({
-            type: 'content',
-            delta: textDelta,
-          });
-        }
+        accumulatedContent += textDelta;
+        sendEvent({
+          type: 'content',
+          delta: textDelta,
+        });
       }
 
       const durationMs = Date.now() - startTime;
