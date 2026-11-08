@@ -13,6 +13,10 @@ import {
   RefreshCw,
   Cpu,
   CornerDownLeft,
+  Paperclip,
+  X,
+  FileCode2,
+  UploadCloud,
 } from 'lucide-react';
 import { AgentId, Message, Conversation } from '../../types';
 import { PERSONA_REGISTRY, ALL_PERSONAS } from '../../lib/agents/persona-registry';
@@ -45,10 +49,13 @@ export function ConversationEngine({
   onSelectAgent,
 }: ConversationEngineProps) {
   const [inputText, setInputText] = useState('');
+  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string; size: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const persona = PERSONA_REGISTRY[activeAgentId] || PERSONA_REGISTRY.secops;
@@ -69,6 +76,48 @@ export function ConversationEngine({
     }
   }, [inputText]);
 
+  const processFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast('File exceeds 10MB limit', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = (event.target?.result as string) || '';
+      setAttachedFile({ name: file.name, content, size: file.size });
+      toast(`Attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'success');
+    };
+    reader.onerror = () => {
+      toast('Failed to read file contents', 'error');
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -77,13 +126,23 @@ export function ConversationEngine({
   };
 
   const handleSubmit = async () => {
-    if (!inputText.trim() || isStreaming) return;
-    const text = inputText;
+    if ((!inputText.trim() && !attachedFile) || isStreaming) return;
+
+    let finalMessage = inputText.trim();
+    if (attachedFile) {
+      const ext = attachedFile.name.split('.').pop() || '';
+      finalMessage = finalMessage
+        ? `${finalMessage}\n\n[Attached File: ${attachedFile.name}]\n\`\`\`${ext}\n${attachedFile.content}\n\`\`\`\n`
+        : `[Attached File: ${attachedFile.name}]\n\`\`\`${ext}\n${attachedFile.content}\n\`\`\`\n`;
+    }
+
     setInputText('');
+    setAttachedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    await onSendMessage(text);
+    await onSendMessage(finalMessage);
   };
 
   const handleCopyMessage = async (msgId: string, content: string) => {
@@ -389,22 +448,94 @@ export function ConversationEngine({
       {/* Composer Area */}
       <div className="p-4 border-t border-slate-800/80 bg-[#0B0F18] shrink-0">
         <div className="max-w-3xl mx-auto">
-          <div className="relative rounded-xl border border-slate-800 bg-[#070A11] focus-within:border-cyan-500/80 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all shadow-inner">
+          {/* File Attachment Preview Badge */}
+          {attachedFile && (
+            <div className="flex items-center gap-2 self-start mb-2 px-3 py-1.5 rounded-lg bg-[#0F1524] border border-cyan-800/60 text-xs shadow-md animate-in fade-in slide-in-from-bottom-1 duration-150">
+              <div className="flex items-center justify-center w-5 h-5 rounded bg-cyan-950/80 text-cyan-400 shrink-0">
+                <Paperclip className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                <span className="font-mono font-medium text-slate-100 truncate max-w-[200px] sm:max-w-[340px]">
+                  {attachedFile.name}
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400/80">
+                  ({(attachedFile.size / 1024).toFixed(1)} KB)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachedFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="ml-auto p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-red-400 transition-colors"
+                title="Remove attached file"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,.log,.csv,.json,.md,.py,.xml,.pcap,.conf,.ts,.tsx,.pdf,.docx,.sql,.sh,.yml,.yaml,.html,.css"
+            className="hidden"
+          />
+
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative rounded-xl border bg-[#070A11] transition-all shadow-inner ${
+              isDragging
+                ? 'border-cyan-400 ring-2 ring-cyan-500/40 bg-cyan-950/20'
+                : 'border-slate-800 focus-within:border-cyan-500/80 focus-within:ring-1 focus-within:ring-cyan-500/30'
+            }`}
+          >
+            {isDragging && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#070A11]/90 rounded-xl border-2 border-dashed border-cyan-400 pointer-events-none">
+                <div className="flex items-center gap-2 text-xs font-mono text-cyan-300">
+                  <UploadCloud className="w-4 h-4 animate-bounce" />
+                  <span>Drop log, code, or data file to attach</span>
+                </div>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               rows={1}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Query ${persona.name.split(' ')[0]} (${persona.role})...`}
-              className="w-full px-4 pt-3 pb-10 text-xs sm:text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
+              placeholder={`Query ${persona.name.split(' ')[0]} (${persona.role}) or attach a log/code file...`}
+              className="w-full px-4 pt-3 pb-11 text-xs sm:text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
             />
 
             {/* Bottom Actions Row inside Composer */}
             <div className="absolute left-3 right-3 bottom-2 flex items-center justify-between pointer-events-none">
-              <div className="flex items-center gap-2 pointer-events-auto">
+              <div className="flex items-center gap-1.5 pointer-events-auto">
+                {/* Paperclip Attachment Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors border ${
+                    attachedFile
+                      ? 'bg-cyan-950/60 border-cyan-800 text-cyan-300'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                  }`}
+                  title="Attach log, script, pcap, or data file (.txt, .log, .csv, .json, .md, .py, .xml, .pcap, etc.)"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-mono hidden sm:inline-block">
+                    {attachedFile ? 'Attached' : 'Attach'}
+                  </span>
+                </button>
+
                 <span
-                  className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
+                  className="text-[10px] font-mono px-1.5 py-0.5 rounded border hidden sm:inline-block"
                   style={{
                     color: persona.accentColor,
                     backgroundColor: `${persona.accentColor}12`,
@@ -413,7 +544,8 @@ export function ConversationEngine({
                 >
                   {persona.id}
                 </span>
-                <span className="text-[10px] font-mono text-slate-500">
+
+                <span className="text-[10px] font-mono text-slate-500 hidden sm:inline-block">
                   {inputText.length} chars
                 </span>
               </div>
@@ -430,9 +562,9 @@ export function ConversationEngine({
                 ) : (
                   <button
                     onClick={handleSubmit}
-                    disabled={!inputText.trim()}
+                    disabled={!inputText.trim() && !attachedFile}
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all ${
-                      inputText.trim()
+                      inputText.trim() || attachedFile
                         ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-950/50'
                         : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                     }`}

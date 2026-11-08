@@ -11,7 +11,7 @@ export function assembleSystemPrompt(options: PromptAssemblyOptions): string {
   const sections: string[] = [];
 
   // 1. Selected agent's exact base system instruction
-  sections.push(`### BASE SYSTEM INSTRUCTION\n${persona.exactBaseInstruction}`);
+  sections.push(`### BASE SYSTEM INSTRUCTION\n${persona.systemInstruction || persona.exactBaseInstruction}`);
 
   // 2. Agent-specific operational behavior
   sections.push(`### OPERATIONAL BEHAVIOR\n${persona.operationalBehavior}`);

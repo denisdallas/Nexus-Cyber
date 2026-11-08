@@ -41,6 +41,19 @@ test('Persona Registry: SecOps base instruction matches blueprint specification'
   );
 });
 
+test('Persona Registry: Coder is polyglot software architect covering low-level, web, mobile, databases, scripting', () => {
+  const coder = getPersona('coder');
+  assert.equal(coder.name, 'Software Architect');
+  assert.equal(coder.role, 'Polyglot & Multi-Platform Engineer');
+  assert.match(coder.exactBaseInstruction, /Elite Principal Polyglot Software Architect/);
+  assert.match(coder.exactBaseInstruction, /Low-level & Systems/);
+  assert.match(coder.exactBaseInstruction, /Web & Backend/);
+  assert.match(coder.exactBaseInstruction, /Mobile Apps/);
+  assert.match(coder.exactBaseInstruction, /Databases & Querying/);
+  assert.match(coder.exactBaseInstruction, /Scripting & Automation/);
+  assert.match(coder.exactBaseInstruction, /Security & Rules/);
+});
+
 test('Prompt Assembly: orders base instruction, operational behavior, context, and bounds', () => {
   const coder = getPersona('coder');
   const sampleContext = [
@@ -193,4 +206,37 @@ test('Agent Conversation Isolation: resolves correct conversation by agent witho
   assert.equal(resolveAgentConversation('writer', remembered, sampleConversations), 'c-writer-1');
   assert.equal(resolveAgentConversation('data-pm', remembered, sampleConversations), null);
 });
+
+test('Chat Input File Attachment: formats prompt payload with delimited code block and filename', () => {
+  const userPrompt = 'Please inspect this auth log for brute force attacks';
+  const file = {
+    name: 'auth.log',
+    content: 'Nov 8 14:02:11 host sshd[1234]: Failed password for root from 192.168.1.55',
+  };
+
+  const ext = file.name.split('.').pop() || '';
+  const formattedPayload = `${userPrompt}\n\n[Attached File: ${file.name}]\n\`\`\`${ext}\n${file.content}\n\`\`\`\n`;
+
+  assert.ok(formattedPayload.includes('[Attached File: auth.log]'));
+  assert.ok(formattedPayload.includes('```log'));
+  assert.ok(formattedPayload.includes('Failed password for root from 192.168.1.55'));
+  assert.ok(formattedPayload.startsWith(userPrompt));
+});
+
+test('Integrations & MCP: handles multi-transport MCP server configuration schema', () => {
+  const mcpServer = {
+    id: 'mcp-1',
+    name: 'Local Filesystem MCP Server',
+    endpointUrl: 'http://localhost:3001/mcp',
+    transport: 'http_sse' as const,
+    enabled: true,
+    capabilities: ['list_directory', 'read_file'],
+    status: 'connected' as const,
+  };
+
+  assert.equal(mcpServer.transport, 'http_sse');
+  assert.equal(mcpServer.capabilities.length, 2);
+  assert.ok(mcpServer.endpointUrl.startsWith('http'));
+});
+
 

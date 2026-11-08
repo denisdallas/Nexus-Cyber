@@ -6,7 +6,15 @@ import { ConversationEngine } from './components/chat/ConversationEngine';
 import { ArtifactWorkspace } from './components/artifacts/ArtifactWorkspace';
 import { GlobalContextModal } from './components/context/GlobalContextModal';
 import { SettingsModal } from './components/settings/SettingsModal';
-import { AgentId, Conversation, Message, Artifact, WorkspaceContextItem } from './types';
+import { IntegrationsModal } from './components/integrations/IntegrationsModal';
+import {
+  AgentId,
+  Conversation,
+  Message,
+  Artifact,
+  WorkspaceContextItem,
+  WorkspaceIntegrationsState,
+} from './types';
 import { PERSONA_REGISTRY } from './lib/agents/persona-registry';
 import { getFileMetaFromLang } from './lib/utils/file-utils';
 
@@ -36,6 +44,73 @@ function StudioApp() {
 
   const [isContextModalOpen, setIsContextModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
+
+  const [integrations, setIntegrations] = useState<WorkspaceIntegrationsState>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nexus_integrations');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return {
+      github: {
+        enabled: false,
+        token: '',
+        repoOwner: '',
+        repoName: '',
+        defaultBranch: 'main',
+      },
+      vercel: {
+        enabled: false,
+        token: '',
+        projectId: '',
+      },
+      mcpServers: [
+        {
+          id: 'mcp-fs',
+          name: 'Local Filesystem MCP Server',
+          endpointUrl: 'http://localhost:3001/mcp',
+          transport: 'http_sse',
+          enabled: true,
+          capabilities: ['list_directory', 'read_file', 'write_file', 'grep_search'],
+          description: 'Provides agents direct read/write access to project repositories on host machine.',
+          status: 'connected',
+          lastPingMs: 14,
+        },
+        {
+          id: 'mcp-osint',
+          name: 'OSINT & Brave Search MCP',
+          endpointUrl: 'https://mcp.brave.com/v1',
+          transport: 'http_sse',
+          enabled: true,
+          capabilities: ['web_search', 'fetch_cve_advisory', 'dns_lookup', 'whois_query'],
+          description: 'Enables Security & OSINT Researcher to perform real-time threat intelligence queries.',
+          status: 'connected',
+          lastPingMs: 62,
+        },
+        {
+          id: 'mcp-sqlite',
+          name: 'SQLite Forensic DB MCP',
+          endpointUrl: 'http://127.0.0.1:8765/jsonrpc',
+          transport: 'json_rpc',
+          enabled: false,
+          capabilities: ['execute_sql', 'inspect_schema', 'export_csv'],
+          description: 'Sandboxed relational database query runner for incident log analysis.',
+          status: 'idle',
+        },
+      ],
+    };
+  });
+
+  const handleSaveIntegrations = async (updated: WorkspaceIntegrationsState) => {
+    setIntegrations(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexus_integrations', JSON.stringify(updated));
+    }
+  };
 
   const { toast } = useToast();
 
@@ -476,6 +551,7 @@ function StudioApp() {
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;
   const activeContextCount = contexts.filter((c) => c.enabled).length;
+  const activeMcpCount = integrations.mcpServers.filter((s) => s.enabled).length;
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#080B12] text-slate-100 font-sans">
@@ -483,8 +559,10 @@ function StudioApp() {
       <Header
         activeAgentId={activeAgentId}
         activeContextCount={activeContextCount}
+        activeMcpCount={activeMcpCount}
         onOpenContextModal={() => setIsContextModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+        onOpenIntegrationsModal={() => setIsIntegrationsModalOpen(true)}
         mobileActiveTab={mobileTab}
         onChangeMobileTab={setMobileTab}
       />
@@ -514,7 +592,9 @@ function StudioApp() {
             onDeleteConversation={handleDeleteConversation}
             onOpenContextModal={() => setIsContextModalOpen(true)}
             onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+            onOpenIntegrationsModal={() => setIsIntegrationsModalOpen(true)}
             activeContextCount={activeContextCount}
+            activeMcpCount={activeMcpCount}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
@@ -568,6 +648,14 @@ function StudioApp() {
         contexts={contexts}
         onSaveContext={handleSaveContext}
         onDeleteContext={handleDeleteContext}
+      />
+
+      {/* Integrations & MCP Hub Modal */}
+      <IntegrationsModal
+        isOpen={isIntegrationsModalOpen}
+        onClose={() => setIsIntegrationsModalOpen(false)}
+        integrations={integrations}
+        onSaveIntegrations={handleSaveIntegrations}
       />
 
       {/* System Settings & Storage Architecture Modal */}

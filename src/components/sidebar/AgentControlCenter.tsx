@@ -14,6 +14,7 @@ import {
   ChevronRight,
   MessageSquare,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { AgentId, Conversation } from '../../types';
 import { PERSONA_REGISTRY, ALL_PERSONAS } from '../../lib/agents/persona-registry';
@@ -29,7 +30,9 @@ interface AgentControlCenterProps {
   onDeleteConversation: (id: string) => void;
   onOpenContextModal: () => void;
   onOpenSettingsModal: () => void;
+  onOpenIntegrationsModal: () => void;
   activeContextCount: number;
+  activeMcpCount?: number;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -45,7 +48,9 @@ export function AgentControlCenter({
   onDeleteConversation,
   onOpenContextModal,
   onOpenSettingsModal,
+  onOpenIntegrationsModal,
   activeContextCount,
+  activeMcpCount = 0,
   isCollapsed,
   onToggleCollapse,
 }: AgentControlCenterProps) {
@@ -373,6 +378,24 @@ export function AgentControlCenter({
           {!isCollapsed && (
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/70 border border-cyan-800/60 text-cyan-300">
               {activeContextCount} active
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={onOpenIntegrationsModal}
+          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors border border-slate-800 ${
+            isCollapsed ? 'justify-center p-2' : ''
+          }`}
+          title="Integrations & MCP Hub (GitHub, Vercel, MCP Tools)"
+        >
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+            {!isCollapsed && <span>Integrations & MCP</span>}
+          </div>
+          {!isCollapsed && (
+            <span className="text-[10px] font-mono text-cyan-400">
+              {activeMcpCount} active
             </span>
           )}
         </button>

@@ -10,6 +10,7 @@ export interface AgentPersona {
   badgeBorder: string;
   iconName: string;
   exactBaseInstruction: string;
+  systemInstruction?: string;
   operationalBehavior: string;
   quickPrompts: { label: string; prompt: string }[];
 }
@@ -84,3 +85,40 @@ export interface ChatStreamEvent {
   error?: string;
   metadata?: MessageMetadata;
 }
+
+export interface GitHubIntegrationConfig {
+  enabled: boolean;
+  token: string;
+  repoOwner: string;
+  repoName: string;
+  defaultBranch: string;
+  lastSyncAt?: string;
+}
+
+export interface VercelIntegrationConfig {
+  enabled: boolean;
+  token: string;
+  projectId: string;
+  teamId?: string;
+  webhookUrl?: string;
+  lastDeployAt?: string;
+}
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  endpointUrl: string;
+  transport: 'http_sse' | 'json_rpc';
+  enabled: boolean;
+  capabilities: string[];
+  description?: string;
+  status: 'connected' | 'idle' | 'error';
+  lastPingMs?: number;
+}
+
+export interface WorkspaceIntegrationsState {
+  github: GitHubIntegrationConfig;
+  vercel: VercelIntegrationConfig;
+  mcpServers: McpServerConfig[];
+}
+

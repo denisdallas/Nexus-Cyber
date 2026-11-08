@@ -6,8 +6,10 @@ import { PERSONA_REGISTRY } from '../../lib/agents/persona-registry';
 interface HeaderProps {
   activeAgentId: AgentId;
   activeContextCount: number;
+  activeMcpCount?: number;
   onOpenContextModal: () => void;
   onOpenSettingsModal: () => void;
+  onOpenIntegrationsModal: () => void;
   mobileActiveTab: 'agents' | 'chat' | 'artifacts';
   onChangeMobileTab: (tab: 'agents' | 'chat' | 'artifacts') => void;
 }
@@ -15,8 +17,10 @@ interface HeaderProps {
 export function Header({
   activeAgentId,
   activeContextCount,
+  activeMcpCount = 0,
   onOpenContextModal,
   onOpenSettingsModal,
+  onOpenIntegrationsModal,
   mobileActiveTab,
   onChangeMobileTab,
 }: HeaderProps) {
@@ -45,6 +49,13 @@ export function Header({
           >
             <span>Workspace Context</span>
             <span className="text-[10px] font-mono text-cyan-400">({activeContextCount})</span>
+          </button>
+          <button
+            onClick={onOpenIntegrationsModal}
+            className="hover:text-slate-200 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+          >
+            <span>Integrations & MCP</span>
+            <span className="text-[10px] font-mono text-cyan-400">({activeMcpCount} MCP)</span>
           </button>
           <button
             onClick={onOpenSettingsModal}
