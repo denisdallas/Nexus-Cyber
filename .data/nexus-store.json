@@ -1,0 +1,55 @@
+{
+  "conversations": [
+    {
+      "id": "conv-1794173890680-6p2jz",
+      "title": "Session with Cyber",
+      "agentId": "secops",
+      "createdAt": "2026-11-08T21:38:10.680Z",
+      "updatedAt": "2026-11-08T21:38:10.680Z"
+    }
+  ],
+  "messages": [],
+  "workspaceContext": [
+    {
+      "id": "ctx-seed-01",
+      "category": "Cybersecurity",
+      "title": "NIST Incident Handling Protocol (SP 800-61)",
+      "content": "Follow NIST SP 800-61 Rev. 2 lifecycle: 1. Preparation, 2. Detection & Analysis, 3. Containment, Eradication & Recovery, 4. Post-Incident Activity. Always preserve forensic integrity and chain of custody.",
+      "enabled": true,
+      "createdAt": "2026-11-08T21:30:12.862Z",
+      "updatedAt": "2026-11-08T21:30:12.862Z"
+    },
+    {
+      "id": "ctx-seed-02",
+      "category": "Technology Stack",
+      "title": "Core Architecture Standards",
+      "content": "Production TypeScript, Node.js, Next.js / Express, PostgreSQL + Drizzle ORM, Tailwind CSS, Lucide icons. Strict type-safety, zero dead code, clean modular design.",
+      "enabled": true,
+      "createdAt": "2026-11-08T21:30:12.862Z",
+      "updatedAt": "2026-11-08T21:30:12.862Z"
+    },
+    {
+      "id": "ctx-seed-03",
+      "category": "Development Rules",
+      "title": "Defensive Coding & OWASP Top 10 Guardrails",
+      "content": "Always sanitize external input, use parameterized queries to prevent SQLi, validate JSON payloads with Zod schemas, enforce strict CSP headers, and never log secret tokens.",
+      "enabled": true,
+      "createdAt": "2026-11-08T21:30:12.862Z",
+      "updatedAt": "2026-11-08T21:30:12.862Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-1794173446232-fzlch",
+      "conversationId": "conv-global",
+      "agentId": "coder",
+      "title": "Postgres Advisory Lock Engine",
+      "fileName": "lock_engine.ts",
+      "fileType": "TypeScript",
+      "mimeType": "text/typescript",
+      "content": "// PostgreSQL Advisory Lock Implementation\\nimport { sql } from 'drizzle-orm';\\n\\nexport class AdvisoryLock {\\n  constructor(private lockId: number) {}\\n}",
+      "createdAt": "2026-11-08T21:30:46.232Z",
+      "updatedAt": "2026-11-08T21:30:46.232Z"
+    }
+  ]
+}

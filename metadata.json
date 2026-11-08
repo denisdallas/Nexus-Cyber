@@ -1,0 +1,7 @@
+{
+  "name": "Nexus Cyber & Tech Studio",
+  "description": "Production-ready multi-agent AI intelligence and engineering workspace featuring five specialized personas, persistent context, streaming chat, and editable artifacts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
