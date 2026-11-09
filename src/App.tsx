@@ -36,6 +36,7 @@ function StudioApp() {
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [activeProvider, setActiveProvider] = useState<{ provider: string; model: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -332,6 +333,7 @@ function StudioApp() {
 
     setIsStreaming(true);
     setStreamingContent('');
+    setActiveProvider(null);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -374,7 +376,9 @@ function StudioApp() {
             const dataStr = trimmed.slice(6);
             try {
               const event = JSON.parse(dataStr);
-              if (event.type === 'content' && event.delta) {
+              if (event.type === 'provider') {
+                setActiveProvider({ provider: event.provider, model: event.model });
+              } else if (event.type === 'content' && event.delta) {
                 accumulated += event.delta;
                 setStreamingContent(accumulated);
               } else if (event.type === 'completion') {
@@ -604,6 +608,7 @@ function StudioApp() {
             messages={messages}
             isStreaming={isStreaming}
             streamingMessageContent={streamingContent}
+            activeProvider={activeProvider}
             onSendMessage={handleSendMessage}
             onStopGeneration={handleStopGeneration}
             onRegenerate={handleRegenerate}

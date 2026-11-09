@@ -29,6 +29,7 @@ interface ConversationEngineProps {
   messages: Message[];
   isStreaming: boolean;
   streamingMessageContent: string;
+  activeProvider: { provider: string; model: string } | null;
   onSendMessage: (text: string) => Promise<void>;
   onStopGeneration: () => void;
   onRegenerate: () => Promise<void>;
@@ -42,6 +43,7 @@ export function ConversationEngine({
   messages,
   isStreaming,
   streamingMessageContent,
+  activeProvider,
   onSendMessage,
   onStopGeneration,
   onRegenerate,
@@ -77,6 +79,12 @@ export function ConversationEngine({
   }, [inputText]);
 
   const processFile = (file: File) => {
+    const textExtensions = new Set(['txt', 'log', 'csv', 'json', 'md', 'py', 'xml', 'pcap', 'conf', 'ts', 'tsx', 'sql', 'sh', 'yml', 'yaml', 'html', 'css']);
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!textExtensions.has(extension)) {
+      toast('This attachment type needs server-side extraction before it can be analyzed. Use TXT, LOG, CSV, JSON, code, or config files for now.', 'error');
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       toast('File exceeds 10MB limit', 'error');
       return;
@@ -251,7 +259,7 @@ export function ConversationEngine({
         {/* Engine Model Badge */}
         <div className="hidden sm:flex items-center gap-2 text-[11px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-full border border-slate-800">
           <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-          <span>gemini-3.8-flash</span>
+          <span>{activeProvider ? `${activeProvider.provider} / ${activeProvider.model}` : 'routing standby'}</span>
         </div>
       </div>
 
