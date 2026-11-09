@@ -47,14 +47,6 @@ function StudioApp() {
   const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
 
   const [integrations, setIntegrations] = useState<WorkspaceIntegrationsState>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('nexus_integrations');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
     return {
       github: {
         enabled: false,
