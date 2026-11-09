@@ -5,6 +5,7 @@ import { assembleSystemPrompt } from '../src/lib/ai/prompt-builder';
 import { extractCodeBlocksFromMarkdown, getFileMetaFromLang } from '../src/lib/services/artifact-service';
 import { chatRequestSchema, workspaceContextSchema } from '../src/lib/validation/index';
 import { AgentId } from '../src/types/index';
+import { extractUploadedFile } from '../src/lib/files/file-processor';
 
 test('Persona Registry: all 5 required personas registered with unique IDs', () => {
   const expectedIds: AgentId[] = ['secops', 'coder', 'data-pm', 'writer', 'researcher'];
@@ -237,6 +238,40 @@ test('Integrations & MCP: handles multi-transport MCP server configuration schem
   assert.equal(mcpServer.transport, 'http_sse');
   assert.equal(mcpServer.capabilities.length, 2);
   assert.ok(mcpServer.endpointUrl.startsWith('http'));
+});
+
+test('File Processor: preserves text/code and parses CSV and JSON structurally', async () => {
+  const source = await extractUploadedFile('analysis.py', Buffer.from('print("safe")\n'));
+  assert.equal(source.kind, 'text');
+  assert.equal(source.text, 'print("safe")\n');
+
+  const csv = await extractUploadedFile('events.csv', Buffer.from('ip,action\n10.0.0.1,login\n'));
+  assert.equal(csv.kind, 'csv');
+  assert.match(csv.text, /10\.0\.0\.1/);
+  assert.deepEqual(csv.metadata.columns, ['ip', 'action']);
+
+  const json = await extractUploadedFile('events.json', Buffer.from('{"severity":"high"}'));
+  assert.equal(json.kind, 'json');
+  assert.match(json.text, /severity/);
+});
+
+test('File Processor: rejects malformed structured data, unsupported types, and oversized files', async () => {
+  await assert.rejects(() => extractUploadedFile('broken.json', Buffer.from('{bad')), /Invalid JSON/);
+  await assert.rejects(() => extractUploadedFile('payload.exe', Buffer.from('MZ')), /Unsupported file type/);
+  await assert.rejects(() => extractUploadedFile('huge.txt', Buffer.alloc(10 * 1024 * 1024 + 1)), /10MB/);
+});
+
+test('File Processor: parses a genuine empty classic PCAP global header without executing payloads', async () => {
+  const header = Buffer.alloc(24);
+  header.writeUInt32LE(0xa1b2c3d4, 0);
+  header.writeUInt16LE(2, 4);
+  header.writeUInt16LE(4, 6);
+  header.writeUInt32LE(65535, 16);
+  header.writeUInt32LE(1, 20);
+  const pcap = await extractUploadedFile('capture.pcap', header);
+  assert.equal(pcap.kind, 'pcap');
+  assert.equal(pcap.metadata.packetCount, 0);
+  assert.match(pcap.text, /packetCount/);
 });
 
 

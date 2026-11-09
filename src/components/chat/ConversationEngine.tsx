@@ -78,27 +78,36 @@ export function ConversationEngine({
     }
   }, [inputText]);
 
-  const processFile = (file: File) => {
-    const textExtensions = new Set(['txt', 'log', 'csv', 'json', 'md', 'py', 'xml', 'pcap', 'conf', 'ts', 'tsx', 'sql', 'sh', 'yml', 'yaml', 'html', 'css']);
+  const processFile = async (file: File) => {
+    const supportedExtensions = new Set(['txt', 'log', 'csv', 'json', 'md', 'py', 'xml', 'pcap', 'pcapng', 'conf', 'ts', 'tsx', 'sql', 'sh', 'yml', 'yaml', 'html', 'css', 'pdf', 'docx']);
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!textExtensions.has(extension)) {
-      toast('This attachment type needs server-side extraction before it can be analyzed. Use TXT, LOG, CSV, JSON, code, or config files for now.', 'error');
+    if (!supportedExtensions.has(extension)) {
+      toast('Unsupported file type. Use PDF, DOCX, TXT, LOG, CSV, JSON, PCAP, or code/configuration files.', 'error');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
       toast('File exceeds 10MB limit', 'error');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = (event.target?.result as string) || '';
-      setAttachedFile({ name: file.name, content, size: file.size });
-      toast(`Attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'success');
-    };
-    reader.onerror = () => {
-      toast('Failed to read file contents', 'error');
-    };
-    reader.readAsText(file);
+    try {
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const response = await fetch('/api/files/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, data }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'File extraction failed');
+      setAttachedFile({ name: file.name, content: result.text, size: file.size });
+      toast(`Extracted: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'success');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'File extraction failed', 'error');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

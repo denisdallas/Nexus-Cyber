@@ -18,6 +18,7 @@ import { getProviderStatus, openProviderStream } from './src/lib/ai/provider-rou
 import { dbService, initDatabaseConnection } from './src/lib/database/client.ts';
 import { extractCodeBlocksFromMarkdown, createArtifactFromBlock } from './src/lib/services/artifact-service.ts';
 import { Message, Conversation } from './src/types/index.ts';
+import { extractUploadedFile, MAX_FILE_BYTES } from './src/lib/files/file-processor.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -251,6 +252,23 @@ async function startServer() {
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to delete artifact' });
+    }
+  });
+
+  // ----------------------------------------------------
+  // SERVER-SIDE FILE EXTRACTION
+  // ----------------------------------------------------
+  app.post('/api/files/extract', async (req: Request, res: Response) => {
+    try {
+      const filename = typeof req.body?.filename === 'string' ? path.basename(req.body.filename) : '';
+      const encoded = typeof req.body?.data === 'string' ? req.body.data : '';
+      if (!filename || !encoded) return res.status(400).json({ error: 'filename and base64 data are required' });
+      const input = Buffer.from(encoded, 'base64');
+      if (input.length > MAX_FILE_BYTES) return res.status(413).json({ error: `File exceeds the ${MAX_FILE_BYTES / 1024 / 1024}MB processing limit.` });
+      const extraction = await extractUploadedFile(filename, input);
+      res.json(extraction);
+    } catch (err: any) {
+      res.status(422).json({ error: err instanceof Error ? err.message : 'File extraction failed' });
     }
   });
 
